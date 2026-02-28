@@ -26,16 +26,16 @@ body {
     box-sizing: border-box;
 }
 
-/* Animación inicial */
+/* Transición general */
 .container {
     width: 100%;
     max-width: 380px;
     opacity: 0;
     transform: translateY(10px);
-    transition: opacity 0.6s ease, transform 0.6s ease;
+    transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
-.container.loaded {
+.container.visible {
     opacity: 1;
     transform: translateY(0);
 }
@@ -43,18 +43,15 @@ body {
 .title {
     font-size: 26px;
     font-weight: 500;
-    letter-spacing: -0.3px;
     text-align: center;
     margin-bottom: 56px;
-    transition: opacity 0.3s ease;
 }
 
 label {
     font-size: 13px;
     color: var(--muted);
-    display: block;
     margin-bottom: 6px;
-    transition: opacity 0.3s ease;
+    display: block;
 }
 
 input, select {
@@ -67,7 +64,7 @@ input, select {
     color: var(--text);
     font-size: 15px;
     outline: none;
-    transition: border-color 0.25s ease, opacity 0.3s ease;
+    transition: border-color 0.25s ease;
 }
 
 input:focus, select:focus {
@@ -81,17 +78,25 @@ button {
     color: var(--text);
     padding: 14px;
     font-size: 14px;
-    letter-spacing: 0.5px;
     cursor: pointer;
-    transition: all 0.25s ease;
+    transition: border-color 0.25s ease;
 }
 
 button:hover {
     border-color: #ffffff;
 }
 
-#resultado, #detalle {
+/* Warning minimal */
+#warning {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--muted);
+    opacity: 0;
     transition: opacity 0.3s ease;
+}
+
+#warning.show {
+    opacity: 1;
 }
 
 #resultado {
@@ -114,7 +119,6 @@ button:hover {
     bottom: 24px;
     right: 28px;
     font-size: 12px;
-    letter-spacing: 1px;
     color: var(--muted);
 }
 
@@ -159,6 +163,8 @@ button:hover {
 
     <button onclick="calcular()" id="btnCalcular">Calcular</button>
 
+    <div id="warning"></div>
+
     <div id="resultado"></div>
     <div id="detalle"></div>
 
@@ -172,16 +178,19 @@ button:hover {
 
 <script>
 let idiomaActual = "es";
+let warningTimeout;
 
-function fadeOutIn(callback) {
-    const container = document.getElementById("container");
-    container.style.opacity = 0;
-    container.style.transform = "translateY(10px)";
+function showContainer() {
+    setTimeout(() => {
+        container.classList.add("visible");
+    }, 50);
+}
 
+function fadeLanguageChange(callback) {
+    container.classList.remove("visible");
     setTimeout(() => {
         callback();
-        container.style.opacity = 1;
-        container.style.transform = "translateY(0)";
+        container.classList.add("visible");
     }, 250);
 }
 
@@ -189,13 +198,11 @@ function detectarIdioma() {
     const lang = navigator.language || "";
     idiomaActual = lang.startsWith("en") ? "en" : "es";
     actualizarIdioma();
-    setTimeout(() => {
-        document.getElementById("container").classList.add("loaded");
-    }, 50);
+    showContainer();
 }
 
 function setIdioma(idioma) {
-    fadeOutIn(() => {
+    fadeLanguageChange(() => {
         idiomaActual = idioma;
         actualizarIdioma();
     });
@@ -224,6 +231,20 @@ function actualizarIdioma() {
 
     resultado.innerHTML = "";
     detalle.innerHTML = "";
+    warning.innerHTML = "";
+}
+
+function mostrarWarning() {
+    warning.innerText = idiomaActual === "es"
+        ? "Complete los campos requeridos."
+        : "Please complete required fields.";
+
+    warning.classList.add("show");
+
+    clearTimeout(warningTimeout);
+    warningTimeout = setTimeout(() => {
+        warning.classList.remove("show");
+    }, 2500);
 }
 
 function formatoMoneda(valor, moneda) {
@@ -238,10 +259,13 @@ function calcular() {
     const precio = parseFloat(document.getElementById("precio").value);
     const cantidad = parseFloat(document.getElementById("cantidad").value);
     const impuestoPorcentaje = parseFloat(document.getElementById("impuesto").value);
+
+    if (!precio || !cantidad) {
+        mostrarWarning();
+        return;
+    }
+
     const impuesto = impuestoPorcentaje / 100;
-
-    if (!precio || !cantidad) return;
-
     const factor = 1 + impuesto;
     const total = precio * factor;
     const costo = total / cantidad;
@@ -253,33 +277,18 @@ function calcular() {
             : "Cost per label: ")
         + formatoMoneda(costo, moneda);
 
-    if (idiomaActual === "es") {
-        detalle.innerHTML =
-`<strong>¿Cómo se realizó el cálculo?</strong>
+    detalle.innerHTML =
+`<strong>${idiomaActual === "es" ? "¿Cómo se realizó el cálculo?" : "How was the calculation done?"}</strong>
 
-1. Precio base: ${formatoMoneda(precio, moneda)}
-2. Impuesto aplicado (${impuestoPorcentaje}%): ${formatoMoneda(impuestoMonto, moneda)}
-3. Precio total con impuesto: ${formatoMoneda(total, moneda)}
-4. División de etiqueta: ${formatoMoneda(total, moneda)} ÷ ${cantidad}
+1. ${idiomaActual === "es" ? "Precio base" : "Base price"}: ${formatoMoneda(precio, moneda)}
+2. ${idiomaActual === "es" ? "Impuesto aplicado" : "Applied tax"} (${impuestoPorcentaje}%): ${formatoMoneda(impuestoMonto, moneda)}
+3. ${idiomaActual === "es" ? "Precio total con impuesto" : "Total with tax"}: ${formatoMoneda(total, moneda)}
+4. ${idiomaActual === "es" ? "División de etiqueta" : "Division"}: ${formatoMoneda(total, moneda)} ÷ ${cantidad}
 
-<strong>Fórmula completa:</strong>
-(Precio base × ${factor.toFixed(2)}) ÷ Cantidad
-
-(${precio} × ${factor.toFixed(2)}) ÷ ${cantidad} = ${formatoMoneda(costo, moneda)}`;
-    } else {
-        detalle.innerHTML =
-`<strong>How was the calculation done?</strong>
-
-1. Base price: ${formatoMoneda(precio, moneda)}
-2. Applied tax (${impuestoPorcentaje}%): ${formatoMoneda(impuestoMonto, moneda)}
-3. Total with tax: ${formatoMoneda(total, moneda)}
-4. Division: ${formatoMoneda(total, moneda)} ÷ ${cantidad}
-
-<strong>Full formula:</strong>
-(Base price × ${factor.toFixed(2)}) ÷ Quantity
+<strong>${idiomaActual === "es" ? "Fórmula completa:" : "Full formula:"}</strong>
+(${idiomaActual === "es" ? "Precio base" : "Price"} × ${factor.toFixed(2)}) ÷ ${idiomaActual === "es" ? "Cantidad" : "Quantity"}
 
 (${precio} × ${factor.toFixed(2)}) ÷ ${cantidad} = ${formatoMoneda(costo, moneda)}`;
-    }
 }
 
 detectarIdioma();
