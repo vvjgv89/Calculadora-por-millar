@@ -26,13 +26,12 @@ body {
     box-sizing: border-box;
 }
 
-/* Transición general */
 .container {
     width: 100%;
     max-width: 380px;
     opacity: 0;
-    transform: translateY(10px);
-    transition: opacity 0.5s ease, transform 0.5s ease;
+    transform: translateY(6px);
+    transition: opacity 0.45s ease, transform 0.45s ease;
 }
 
 .container.visible {
@@ -64,7 +63,6 @@ input, select {
     color: var(--text);
     font-size: 15px;
     outline: none;
-    transition: border-color 0.25s ease;
 }
 
 input:focus, select:focus {
@@ -79,14 +77,14 @@ button {
     padding: 14px;
     font-size: 14px;
     cursor: pointer;
-    transition: border-color 0.25s ease;
+    transition: all 0.18s ease;
 }
 
-button:hover {
+button:active {
+    transform: scale(0.97);
     border-color: #ffffff;
 }
 
-/* Warning minimal */
 #warning {
     margin-top: 12px;
     font-size: 13px;
@@ -97,6 +95,17 @@ button:hover {
 
 #warning.show {
     opacity: 1;
+}
+
+.fade-result {
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.fade-result.visible {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 #resultado {
@@ -113,7 +122,6 @@ button:hover {
     white-space: pre-line;
 }
 
-/* Idioma */
 .language-switch {
     position: fixed;
     bottom: 24px;
@@ -125,7 +133,6 @@ button:hover {
 .language-switch span {
     cursor: pointer;
     opacity: 0.4;
-    transition: opacity 0.2s ease;
 }
 
 .language-switch span.active {
@@ -161,57 +168,53 @@ button:hover {
     <label id="lblImpuesto">Impuesto (%)</label>
     <input type="number" id="impuesto" value="13">
 
-    <button onclick="calcular()" id="btnCalcular">Calcular</button>
+    <button id="btnCalcular">Calcular</button>
 
     <div id="warning"></div>
 
-    <div id="resultado"></div>
-    <div id="detalle"></div>
+    <div id="resultado" class="fade-result"></div>
+    <div id="detalle" class="fade-result"></div>
 
 </div>
 
 <div class="language-switch">
-    <span id="esBtn" onclick="setIdioma('es')">ES</span>
+    <span id="esBtn">ES</span>
     <span class="divider">/</span>
-    <span id="enBtn" onclick="setIdioma('en')">EN</span>
+    <span id="enBtn">EN</span>
 </div>
 
 <script>
-let idiomaActual = "es";
-let warningTimeout;
+document.addEventListener("DOMContentLoaded", function() {
+
+const container = document.getElementById("container");
+const titulo = document.getElementById("titulo");
+const lblMoneda = document.getElementById("lblMoneda");
+const lblPrecio = document.getElementById("lblPrecio");
+const lblCantidad = document.getElementById("lblCantidad");
+const lblImpuesto = document.getElementById("lblImpuesto");
+const btnCalcular = document.getElementById("btnCalcular");
+const resultado = document.getElementById("resultado");
+const detalle = document.getElementById("detalle");
+const warning = document.getElementById("warning");
+const esBtn = document.getElementById("esBtn");
+const enBtn = document.getElementById("enBtn");
+
+let idiomaActual = localStorage.getItem("idioma") || 
+                   (navigator.language.startsWith("en") ? "en" : "es");
 
 function showContainer() {
-    setTimeout(() => {
-        container.classList.add("visible");
-    }, 50);
-}
-
-function fadeLanguageChange(callback) {
-    container.classList.remove("visible");
-    setTimeout(() => {
-        callback();
-        container.classList.add("visible");
-    }, 250);
-}
-
-function detectarIdioma() {
-    const lang = navigator.language || "";
-    idiomaActual = lang.startsWith("en") ? "en" : "es";
-    actualizarIdioma();
-    showContainer();
+    setTimeout(() => container.classList.add("visible"), 50);
 }
 
 function setIdioma(idioma) {
-    fadeLanguageChange(() => {
-        idiomaActual = idioma;
-        actualizarIdioma();
-    });
+    localStorage.setItem("idioma", idioma);
+    idiomaActual = idioma;
+    actualizarIdioma();
 }
 
 function actualizarIdioma() {
-    esBtn.classList.remove("active");
-    enBtn.classList.remove("active");
-    document.getElementById(idiomaActual + "Btn").classList.add("active");
+    esBtn.classList.toggle("active", idiomaActual === "es");
+    enBtn.classList.toggle("active", idiomaActual === "en");
 
     if (idiomaActual === "es") {
         titulo.innerText = "Calculadora";
@@ -231,20 +234,6 @@ function actualizarIdioma() {
 
     resultado.innerHTML = "";
     detalle.innerHTML = "";
-    warning.innerHTML = "";
-}
-
-function mostrarWarning() {
-    warning.innerText = idiomaActual === "es"
-        ? "Complete los campos requeridos."
-        : "Please complete required fields.";
-
-    warning.classList.add("show");
-
-    clearTimeout(warningTimeout);
-    warningTimeout = setTimeout(() => {
-        warning.classList.remove("show");
-    }, 2500);
 }
 
 function formatoMoneda(valor, moneda) {
@@ -261,7 +250,11 @@ function calcular() {
     const impuestoPorcentaje = parseFloat(document.getElementById("impuesto").value);
 
     if (!precio || !cantidad) {
-        mostrarWarning();
+        warning.innerText = idiomaActual === "es"
+            ? "Complete los campos requeridos."
+            : "Please complete required fields.";
+        warning.classList.add("show");
+        setTimeout(() => warning.classList.remove("show"), 2500);
         return;
     }
 
@@ -272,9 +265,7 @@ function calcular() {
     const impuestoMonto = precio * impuesto;
 
     resultado.innerHTML =
-        (idiomaActual === "es"
-            ? "Costo por etiqueta: "
-            : "Cost per label: ")
+        (idiomaActual === "es" ? "Costo por etiqueta: " : "Cost per label: ")
         + formatoMoneda(costo, moneda);
 
     detalle.innerHTML =
@@ -286,12 +277,20 @@ function calcular() {
 4. ${idiomaActual === "es" ? "División de etiqueta" : "Division"}: ${formatoMoneda(total, moneda)} ÷ ${cantidad}
 
 <strong>${idiomaActual === "es" ? "Fórmula completa:" : "Full formula:"}</strong>
-(${idiomaActual === "es" ? "Precio base" : "Price"} × ${factor.toFixed(2)}) ÷ ${idiomaActual === "es" ? "Cantidad" : "Quantity"}
-
 (${precio} × ${factor.toFixed(2)}) ÷ ${cantidad} = ${formatoMoneda(costo, moneda)}`;
+
+    resultado.classList.add("visible");
+    detalle.classList.add("visible");
 }
 
-detectarIdioma();
+btnCalcular.addEventListener("click", calcular);
+esBtn.addEventListener("click", () => setIdioma("es"));
+enBtn.addEventListener("click", () => setIdioma("en"));
+
+actualizarIdioma();
+showContainer();
+
+});
 </script>
 
 </body>
