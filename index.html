@@ -16,7 +16,7 @@
 body {
     margin: 0;
     background: var(--bg);
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     color: var(--text);
     display: flex;
     justify-content: center;
@@ -30,11 +30,11 @@ body {
     width: 100%;
     max-width: 380px;
     opacity: 0;
-    transform: translateY(6px);
-    transition: opacity 0.45s ease, transform 0.45s ease;
+    transform: translateY(10px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
 }
 
-.container.visible {
+.container.loaded {
     opacity: 1;
     transform: translateY(0);
 }
@@ -49,8 +49,8 @@ body {
 label {
     font-size: 13px;
     color: var(--muted);
-    margin-bottom: 6px;
     display: block;
+    margin-bottom: 6px;
 }
 
 input, select {
@@ -77,35 +77,23 @@ button {
     padding: 14px;
     font-size: 14px;
     cursor: pointer;
-    transition: all 0.18s ease;
+    transition: all 0.25s ease;
 }
 
-button:active {
-    transform: scale(0.97);
+button:hover {
     border-color: #ffffff;
 }
 
 #warning {
-    margin-top: 12px;
-    font-size: 13px;
+    font-size: 12px;
     color: var(--muted);
+    margin-top: 12px;
     opacity: 0;
     transition: opacity 0.3s ease;
 }
 
-#warning.show {
+#warning.visible {
     opacity: 1;
-}
-
-.fade-result {
-    opacity: 0;
-    transform: translateY(4px);
-    transition: opacity 0.4s ease, transform 0.4s ease;
-}
-
-.fade-result.visible {
-    opacity: 1;
-    transform: translateY(0);
 }
 
 #resultado {
@@ -127,12 +115,14 @@ button:active {
     bottom: 24px;
     right: 28px;
     font-size: 12px;
+    letter-spacing: 1px;
     color: var(--muted);
 }
 
 .language-switch span {
     cursor: pointer;
     opacity: 0.4;
+    transition: opacity 0.2s ease;
 }
 
 .language-switch span.active {
@@ -159,21 +149,17 @@ button:active {
         <option value="USD">USD ($)</option>
     </select>
 
-    <label id="lblPrecio">Precio base</label>
+    <label id="lblPrecio">Precio (incluye impuesto)</label>
     <input type="number" id="precio">
 
     <label id="lblCantidad">Cantidad</label>
     <input type="number" id="cantidad">
 
-    <label id="lblImpuesto">Impuesto (%)</label>
-    <input type="number" id="impuesto" value="13">
-
     <button id="btnCalcular">Calcular</button>
 
     <div id="warning"></div>
-
-    <div id="resultado" class="fade-result"></div>
-    <div id="detalle" class="fade-result"></div>
+    <div id="resultado"></div>
+    <div id="detalle"></div>
 
 </div>
 
@@ -184,112 +170,122 @@ button:active {
 </div>
 
 <script>
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
 
-const container = document.getElementById("container");
-const titulo = document.getElementById("titulo");
-const lblMoneda = document.getElementById("lblMoneda");
-const lblPrecio = document.getElementById("lblPrecio");
-const lblCantidad = document.getElementById("lblCantidad");
-const lblImpuesto = document.getElementById("lblImpuesto");
-const btnCalcular = document.getElementById("btnCalcular");
-const resultado = document.getElementById("resultado");
-const detalle = document.getElementById("detalle");
-const warning = document.getElementById("warning");
-const esBtn = document.getElementById("esBtn");
-const enBtn = document.getElementById("enBtn");
+    const container = document.getElementById("container");
+    const titulo = document.getElementById("titulo");
+    const lblMoneda = document.getElementById("lblMoneda");
+    const lblPrecio = document.getElementById("lblPrecio");
+    const lblCantidad = document.getElementById("lblCantidad");
+    const btnCalcular = document.getElementById("btnCalcular");
+    const resultado = document.getElementById("resultado");
+    const detalle = document.getElementById("detalle");
+    const warning = document.getElementById("warning");
+    const esBtn = document.getElementById("esBtn");
+    const enBtn = document.getElementById("enBtn");
 
-let idiomaActual = localStorage.getItem("idioma") || 
-                   (navigator.language.startsWith("en") ? "en" : "es");
+    let idiomaActual = navigator.language.startsWith("en") ? "en" : "es";
 
-function showContainer() {
-    setTimeout(() => container.classList.add("visible"), 50);
-}
+    function redondear(valor) {
+        return Math.round((valor + Number.EPSILON) * 100) / 100;
+    }
 
-function setIdioma(idioma) {
-    localStorage.setItem("idioma", idioma);
-    idiomaActual = idioma;
+    function actualizarIdioma() {
+        esBtn.classList.toggle("active", idiomaActual === "es");
+        enBtn.classList.toggle("active", idiomaActual === "en");
+
+        if (idiomaActual === "es") {
+            titulo.textContent = "Calculadora";
+            lblMoneda.textContent = "Moneda";
+            lblPrecio.textContent = "Precio (incluye impuesto)";
+            lblCantidad.textContent = "Cantidad";
+            btnCalcular.textContent = "Calcular";
+        } else {
+            titulo.textContent = "Calculator";
+            lblMoneda.textContent = "Currency";
+            lblPrecio.textContent = "Price (tax included)";
+            lblCantidad.textContent = "Quantity";
+            btnCalcular.textContent = "Calculate";
+        }
+
+        resultado.innerHTML = "";
+        detalle.innerHTML = "";
+    }
+
+    function formatoMoneda(valor, moneda) {
+        return new Intl.NumberFormat(
+            moneda === "CRC" ? "es-CR" : "en-US",
+            { style: "currency", currency: moneda }
+        ).format(valor);
+    }
+
+    function mostrarWarning() {
+        warning.textContent =
+            idiomaActual === "es"
+                ? "Complete los campos requeridos."
+                : "Please complete the required fields.";
+
+        warning.classList.add("visible");
+        setTimeout(() => warning.classList.remove("visible"), 2500);
+    }
+
+    btnCalcular.addEventListener("click", function () {
+
+        const moneda = document.getElementById("moneda").value;
+        const precio = parseFloat(document.getElementById("precio").value);
+        const cantidad = parseFloat(document.getElementById("cantidad").value);
+
+        if (!precio || !cantidad) {
+            mostrarWarning();
+            return;
+        }
+
+        const millares = redondear(cantidad / 1000);
+        const divisionInicial = redondear(precio / millares);
+        const costo = redondear(divisionInicial / 1.13);
+
+        resultado.innerHTML =
+            (idiomaActual === "es"
+                ? "Costo por millar (sin impuesto): "
+                : "Cost per thousand (before tax): ")
+            + formatoMoneda(costo, moneda);
+
+        if (idiomaActual === "es") {
+
+            detalle.innerHTML =
+`<strong>¿Cómo se realizó el cálculo?</strong>
+
+1. Conversión a millares: ${cantidad} ÷ 1000 = ${millares}
+2. División inicial: ${precio} ÷ ${millares} = ${divisionInicial}
+3. Eliminación del 13%: ÷ 1.13
+
+<strong>Fórmula completa:</strong>
+(Precio ÷ (Cantidad / 1000)) ÷ 1.13
+
+(${precio} ÷ (${cantidad} / 1000)) ÷ 1.13 = ${formatoMoneda(costo, moneda)}`;
+
+        } else {
+
+            detalle.innerHTML =
+`<strong>How was the calculation done?</strong>
+
+1. Convert to thousands: ${cantidad} ÷ 1000 = ${millares}
+2. Initial division: ${precio} ÷ ${millares} = ${divisionInicial}
+3. Remove 13% tax: ÷ 1.13
+
+<strong>Full formula:</strong>
+(Price ÷ (Quantity / 1000)) ÷ Factor Impuesto
+
+(${precio} ÷ (${cantidad} / 1000)) ÷ 1.13 = ${formatoMoneda(costo, moneda)}`;
+        }
+
+    });
+
+    esBtn.addEventListener("click", () => { idiomaActual = "es"; actualizarIdioma(); });
+    enBtn.addEventListener("click", () => { idiomaActual = "en"; actualizarIdioma(); });
+
     actualizarIdioma();
-}
-
-function actualizarIdioma() {
-    esBtn.classList.toggle("active", idiomaActual === "es");
-    enBtn.classList.toggle("active", idiomaActual === "en");
-
-    if (idiomaActual === "es") {
-        titulo.innerText = "Calculadora";
-        lblMoneda.innerText = "Moneda";
-        lblPrecio.innerText = "Precio base";
-        lblCantidad.innerText = "Cantidad";
-        lblImpuesto.innerText = "Impuesto (%)";
-        btnCalcular.innerText = "Calcular";
-    } else {
-        titulo.innerText = "Calculator";
-        lblMoneda.innerText = "Currency";
-        lblPrecio.innerText = "Base price";
-        lblCantidad.innerText = "Quantity";
-        lblImpuesto.innerText = "Tax (%)";
-        btnCalcular.innerText = "Calculate";
-    }
-
-    resultado.innerHTML = "";
-    detalle.innerHTML = "";
-}
-
-function formatoMoneda(valor, moneda) {
-    return new Intl.NumberFormat(
-        moneda === "CRC" ? "es-CR" : "en-US",
-        { style: "currency", currency: moneda }
-    ).format(valor);
-}
-
-function calcular() {
-    const moneda = document.getElementById("moneda").value;
-    const precio = parseFloat(document.getElementById("precio").value);
-    const cantidad = parseFloat(document.getElementById("cantidad").value);
-    const impuestoPorcentaje = parseFloat(document.getElementById("impuesto").value);
-
-    if (!precio || !cantidad) {
-        warning.innerText = idiomaActual === "es"
-            ? "Complete los campos requeridos."
-            : "Please complete required fields.";
-        warning.classList.add("show");
-        setTimeout(() => warning.classList.remove("show"), 2500);
-        return;
-    }
-
-    const impuesto = impuestoPorcentaje / 100;
-    const factor = 1 + impuesto;
-    const total = precio * factor;
-    const costo = total / cantidad;
-    const impuestoMonto = precio * impuesto;
-
-    resultado.innerHTML =
-        (idiomaActual === "es" ? "Costo por etiqueta: " : "Cost per label: ")
-        + formatoMoneda(costo, moneda);
-
-    detalle.innerHTML =
-`<strong>${idiomaActual === "es" ? "¿Cómo se realizó el cálculo?" : "How was the calculation done?"}</strong>
-
-1. ${idiomaActual === "es" ? "Precio base" : "Base price"}: ${formatoMoneda(precio, moneda)}
-2. ${idiomaActual === "es" ? "Impuesto aplicado" : "Applied tax"} (${impuestoPorcentaje}%): ${formatoMoneda(impuestoMonto, moneda)}
-3. ${idiomaActual === "es" ? "Precio total con impuesto" : "Total with tax"}: ${formatoMoneda(total, moneda)}
-4. ${idiomaActual === "es" ? "División de etiqueta" : "Division"}: ${formatoMoneda(total, moneda)} ÷ ${cantidad}
-
-<strong>${idiomaActual === "es" ? "Fórmula completa:" : "Full formula:"}</strong>
-(${precio} × ${factor.toFixed(2)}) ÷ ${cantidad} = ${formatoMoneda(costo, moneda)}`;
-
-    resultado.classList.add("visible");
-    detalle.classList.add("visible");
-}
-
-btnCalcular.addEventListener("click", calcular);
-esBtn.addEventListener("click", () => setIdioma("es"));
-enBtn.addEventListener("click", () => setIdioma("en"));
-
-actualizarIdioma();
-showContainer();
-
+    setTimeout(() => container.classList.add("loaded"), 50);
 });
 </script>
 
