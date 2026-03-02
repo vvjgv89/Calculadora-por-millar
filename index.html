@@ -246,8 +246,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         resultado.innerHTML =
             (idiomaActual === "es"
-                ? "Costo por millar (sin impuesto): "
-                : "Cost per thousand (before tax): ")
+                ? "Costo por millar (con impuesto): "
+                : "Cost per thousand (after taxes): ")
             + formatoMoneda(costo, moneda);
 
         if (idiomaActual === "es") {
