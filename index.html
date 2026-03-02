@@ -69,7 +69,7 @@ input:focus, select:focus {
     border-bottom: 1px solid #ffffff;
 }
 
-button {
+button.primary {
     width: 100%;
     background: none;
     border: 1px solid var(--line);
@@ -80,7 +80,7 @@ button {
     transition: all 0.25s ease;
 }
 
-button:hover {
+button.primary:hover {
     border-color: #ffffff;
 }
 
@@ -96,10 +96,34 @@ button:hover {
     opacity: 1;
 }
 
-#resultado {
+.result-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     margin-top: 36px;
+}
+
+#resultado {
     font-size: 16px;
     font-weight: 500;
+    flex: 1;
+}
+
+.copy-icon {
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    font-size: 14px;
+    user-select: none;
+}
+
+.copy-icon:hover {
+    opacity: 1;
+}
+
+.copy-icon.copied {
+    opacity: 1;
+    transform: scale(1.1);
 }
 
 #detalle {
@@ -155,10 +179,15 @@ button:hover {
     <label id="lblCantidad">Cantidad</label>
     <input type="number" id="cantidad">
 
-    <button id="btnCalcular">Calcular</button>
+    <button class="primary" id="btnCalcular">Calcular</button>
 
     <div id="warning"></div>
-    <div id="resultado"></div>
+
+    <div class="result-row">
+        <div id="resultado"></div>
+        <div id="copyIcon" class="copy-icon" title="Copy">⧉</div>
+    </div>
+
     <div id="detalle"></div>
 
 </div>
@@ -173,50 +202,49 @@ button:hover {
 document.addEventListener("DOMContentLoaded", function () {
 
     const container = document.getElementById("container");
+    const resultado = document.getElementById("resultado");
+    const detalle = document.getElementById("detalle");
+    const warning = document.getElementById("warning");
+    const copyIcon = document.getElementById("copyIcon");
+
     const titulo = document.getElementById("titulo");
     const lblMoneda = document.getElementById("lblMoneda");
     const lblPrecio = document.getElementById("lblPrecio");
     const lblCantidad = document.getElementById("lblCantidad");
-    const btnCalcular = document.getElementById("btnCalcular");
-    const resultado = document.getElementById("resultado");
-    const detalle = document.getElementById("detalle");
-    const warning = document.getElementById("warning");
-    const esBtn = document.getElementById("esBtn");
-    const enBtn = document.getElementById("enBtn");
 
     let idiomaActual = navigator.language.startsWith("en") ? "en" : "es";
+    let valorCopiable = "";
 
     function redondear(valor) {
         return Math.round((valor + Number.EPSILON) * 100) / 100;
     }
 
+    function formatoMoneda(valor, moneda) {
+        const locale = idiomaActual === "es" ? "es-CR" : "en-US";
+        return new Intl.NumberFormat(locale, {
+            style: "currency",
+            currency: moneda
+        }).format(valor);
+    }
+
     function actualizarIdioma() {
-        esBtn.classList.toggle("active", idiomaActual === "es");
-        enBtn.classList.toggle("active", idiomaActual === "en");
+        document.getElementById("esBtn").classList.toggle("active", idiomaActual === "es");
+        document.getElementById("enBtn").classList.toggle("active", idiomaActual === "en");
 
         if (idiomaActual === "es") {
             titulo.textContent = "Calculadora";
             lblMoneda.textContent = "Moneda";
             lblPrecio.textContent = "Precio (incluye impuesto)";
             lblCantidad.textContent = "Cantidad";
-            btnCalcular.textContent = "Calcular";
         } else {
             titulo.textContent = "Calculator";
             lblMoneda.textContent = "Currency";
             lblPrecio.textContent = "Price (tax included)";
             lblCantidad.textContent = "Quantity";
-            btnCalcular.textContent = "Calculate";
         }
 
-        resultado.innerHTML = "";
-        detalle.innerHTML = "";
-    }
-
-    function formatoMoneda(valor, moneda) {
-        return new Intl.NumberFormat(
-            moneda === "CRC" ? "es-CR" : "en-US",
-            { style: "currency", currency: moneda }
-        ).format(valor);
+        resultado.textContent = "";
+        detalle.textContent = "";
     }
 
     function mostrarWarning() {
@@ -229,7 +257,7 @@ document.addEventListener("DOMContentLoaded", function () {
         setTimeout(() => warning.classList.remove("visible"), 2500);
     }
 
-    btnCalcular.addEventListener("click", function () {
+    document.getElementById("btnCalcular").addEventListener("click", function () {
 
         const moneda = document.getElementById("moneda").value;
         const precio = parseFloat(document.getElementById("precio").value);
@@ -244,45 +272,63 @@ document.addEventListener("DOMContentLoaded", function () {
         const divisionInicial = redondear(precio / millares);
         const costo = redondear(divisionInicial / 1.13);
 
-        resultado.innerHTML =
+        const valorFormateado = formatoMoneda(costo, moneda);
+
+        // ✅ SOLO valor numérico limpio
+        valorCopiable = costo.toFixed(2);
+
+        resultado.textContent =
             (idiomaActual === "es"
-                ? "Costo por millar (con impuesto): "
-                : "Cost per thousand (after taxes): ")
-            + formatoMoneda(costo, moneda);
+                ? "Costo por millar (sin impuesto): "
+                : "Cost per thousand (before tax): ")
+            + valorFormateado;
 
         if (idiomaActual === "es") {
-
-            detalle.innerHTML =
-`<strong>¿Cómo se realizó el cálculo?</strong>
+            detalle.textContent =
+`¿Cómo se realizó el cálculo?
 
 1. Conversión a millares: ${cantidad} ÷ 1000 = ${millares}
 2. División inicial: ${precio} ÷ ${millares} = ${divisionInicial}
 3. Eliminación del 13%: ÷ 1.13
 
-<strong>Fórmula completa:</strong>
+Fórmula completa:
 (Precio ÷ (Cantidad / 1000)) ÷ 1.13
 
-(${precio} ÷ (${cantidad} / 1000)) ÷ 1.13 = ${formatoMoneda(costo, moneda)}`;
-
+(${precio} ÷ (${cantidad} / 1000)) ÷ 1.13 = ${valorFormateado}`;
         } else {
-
-            detalle.innerHTML =
-`<strong>How was the calculation done?</strong>
+            detalle.textContent =
+`How was the calculation done?
 
 1. Convert to thousands: ${cantidad} ÷ 1000 = ${millares}
 2. Initial division: ${precio} ÷ ${millares} = ${divisionInicial}
 3. Remove 13% tax: ÷ 1.13
 
-<strong>Full formula:</strong>
-(Price ÷ (Quantity / 1000)) ÷ Factor Impuesto
+Full formula:
+(Price ÷ (Quantity / 1000)) ÷ 1.13
 
-(${precio} ÷ (${cantidad} / 1000)) ÷ 1.13 = ${formatoMoneda(costo, moneda)}`;
+(${precio} ÷ (${cantidad} / 1000)) ÷ 1.13 = ${valorFormateado}`;
         }
 
     });
 
-    esBtn.addEventListener("click", () => { idiomaActual = "es"; actualizarIdioma(); });
-    enBtn.addEventListener("click", () => { idiomaActual = "en"; actualizarIdioma(); });
+    copyIcon.addEventListener("click", function () {
+        if (!valorCopiable) return;
+
+        navigator.clipboard.writeText(valorCopiable).then(() => {
+            copyIcon.classList.add("copied");
+            setTimeout(() => copyIcon.classList.remove("copied"), 800);
+        });
+    });
+
+    document.getElementById("esBtn").addEventListener("click", () => {
+        idiomaActual = "es";
+        actualizarIdioma();
+    });
+
+    document.getElementById("enBtn").addEventListener("click", () => {
+        idiomaActual = "en";
+        actualizarIdioma();
+    });
 
     actualizarIdioma();
     setTimeout(() => container.classList.add("loaded"), 50);
